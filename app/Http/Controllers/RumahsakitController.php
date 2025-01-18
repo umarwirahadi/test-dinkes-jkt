@@ -9,6 +9,10 @@ use App\Models\TransaksiSatuSehat;
 use Carbon\Carbon;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+
+use function PHPUnit\Framework\isNull;
 
 class RumahsakitController extends Controller
 {
@@ -22,21 +26,38 @@ class RumahsakitController extends Controller
      *
      * @return \Illuminate\Contracts\Support\Renderable
      */
-    public function index()
+    public function index(Request $request)
     {
-
-        $data_rs = Rumahsakit::latest()->paginate(10);
-        return new RumahsakitResource(true,'data rumah sakit',$data_rs);
-        
-        // return view('home');
-
+        try {
+            $current_page   = !empty($_GET['page']) ? $_GET['page']:'1';
+            $filter_kelas   = !empty($_GET['kelas']) ? $_GET['kelas']:'';            
+            $filter_kota    = !empty($_GET['kota']) ? $_GET['kota']:'';
+            $cache_key      = "rumahsakit_{$current_page}_kelas_{$filter_kelas}_kota_{$filter_kota}";
+            $data_rs = Cache::remember($cache_key,10,function() use ($request){
+                $query = DB::table('rumahsakit')
+                ->join('status_koneksi','status_koneksi.organisasi_id','=','rumahsakit.organisasi_id')
+                ->join('transaksi_satu_sehat','transaksi_satu_sehat.organisasi_id','=','rumahsakit.organisasi_id')
+                ->select('rumahsakit.nama_rs','rumahsakit.organisasi_id','rumahsakit.kelas_rs','status_koneksi.status_koneksi','transaksi_satu_sehat.jumlah_pengiriman_data','status_koneksi.alamat','rumahsakit.kota_kab','rumahsakit.email');
+                if(!is_null($request->get('kelas'))) {
+                    $query->where('rumahsakit.kelas_rs','=',$request->get('kelas'));
+                }
+                if(!is_null($request->get('kota'))) {
+                    $query->where('rumahsakit.kota_kab','=',$request->get('kota'));
+                }
+                return $query->paginate(10);
+            });
+            return new RumahsakitResource($data_rs);
+        } catch (\Throwable $th) {
+            return response()->json(['success'=>false,'messaage'=>'failed to access server '.$th->getMessage(),'data'=>null],500);
+        }          
     }
+
 
     public function sync(){
         $data = $this->getAllRumahSakit();
         $data = $this->getAllStatusKoneksi();
         $data = $this->getAllTransaksiSatuSehat();
-        return response()->json($data);
+        return response()->json(['success'=>true,'messaage'=>'sinkronisasi berhasil..!'],500);
     }
 
     
@@ -49,7 +70,7 @@ class RumahsakitController extends Controller
                 $data_rs = json_decode($response->getBody(), true);
                     $total = 0;
                     foreach ($data_rs as $key => $rs) {
-                        Rumahsakit::updateOrCreate(['organisasi_id'=>$rs['organisasi_id']],['kode_rs'=>$rs['kode_rs'],'nama_rs'=>$rs['nama'],'kelas_rs'=>$rs['kelas_rs'],'kota_kab'=>$rs['kota_kab']]);
+                        Rumahsakit::updateOrCreate(['organisasi_id'=>$rs['organisasi_id']],['kode_rs'=>$rs['kode_rs'],'nama_rs'=>$rs['nama'],'email'=>$rs['email'],'kelas_rs'=>$rs['kelas_rs'],'kota_kab'=>$rs['kota_kab']]);
                         $total = $key;
                     }
                 return ['total_success'=>$total];

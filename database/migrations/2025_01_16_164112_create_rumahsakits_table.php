@@ -18,6 +18,7 @@ class CreateRumahsakitsTable extends Migration
             $table->string('organisasi_id');
             $table->string('kode_rs');
             $table->string('nama_rs');
+            $table->string('email')->nullable();
             $table->string('kelas_rs');
             $table->string('kota_kab')->nullable();
             $table->timestamps();

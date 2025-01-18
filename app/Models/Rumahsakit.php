@@ -12,6 +12,7 @@ class Rumahsakit extends Model
     protected $fillable = [
     'organisasi_id',
     'kode_rs',
+    'email',
     'nama_rs',
     'kelas_rs',
     'kota_kab',

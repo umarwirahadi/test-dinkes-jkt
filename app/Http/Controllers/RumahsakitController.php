@@ -57,7 +57,7 @@ class RumahsakitController extends Controller
         $data = $this->getAllRumahSakit();
         $data = $this->getAllStatusKoneksi();
         $data = $this->getAllTransaksiSatuSehat();
-        return response()->json(['success'=>true,'messaage'=>'sinkronisasi berhasil..!'],500);
+        return response()->json(['success'=>true,'messaage'=>'sinkronisasi berhasil..!'],200);
     }
 
     
